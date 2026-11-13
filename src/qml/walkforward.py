@@ -15,22 +15,15 @@ from qml.config import HORIZON, TEST_DAYS, TRAIN_DAYS
 
 def make_splits(dates, train_days: int = TRAIN_DAYS, test_days: int = TEST_DAYS,
                 gap: int = HORIZON) -> list[tuple[np.ndarray, np.ndarray]]:
-    """Rolling walk-forward splits over the sorted UNIQUE dates.
-
-    Picture, with u = sorted unique dates and `start` = index of the first test date:
-        train = u[start - gap - train_days : start - gap]
-        test  = u[start : start + test_days]
-    The first `start` is train_days + gap; then move `start` forward by test_days
-    until it runs past the end (the last test window may be shorter).
-
-    Why the gap: the label on the last training day looks HORIZON days into the future.
-    Without a gap of at least HORIZON days, training labels would contain prices from
-    the test period — leakage. (This is called "purging" / an "embargo".)
-
-    Returns a list of (train_dates, test_dates) numpy arrays.
-    Hint: u = np.array(sorted(pd.unique(pd.to_datetime(pd.Series(dates)))))
-    """
-    raise NotImplementedError("Step 4: implement make_splits")
+    u = np.array(sorted(pd.unique(pd.to_datetime(pd.Series(dates)))))   # unique trading days, in order
+    splits = []
+    start = train_days + gap                                   # blank 1: index of the first test day
+    while start < len(u):
+        train = u[start - gap - train_days : start - gap]      # blank 2: train stops this many days early
+        test = u[start : start + test_days]                          # blank 3: how long is a test window?
+        splits.append((train, test))
+        start += test_days                                          # blank 4: slide forward by one test window
+    return splits
 
 
 def default_model():
@@ -49,20 +42,17 @@ def default_model():
 def walk_forward_predict(df: pd.DataFrame, features: list[str], splits,
                          model_factory: Callable = default_model,
                          label: str = "fwd_ret") -> pd.DataFrame:
-    """Train one fresh model per split and predict its test dates.
-
-    Requirements (tested):
-      * Drop rows with any NaN feature.
-      * Target = the label's percentile rank WITHIN EACH DATE (like rank_by_date):
-        the model learns "which stocks beat the others", which is what we trade.
-      * For each (train_dates, test_dates):
-          - training rows = rows whose date is in train_dates AND whose target is not NaN;
-          - test rows     = rows whose date is in test_dates (their label may be NaN —
-            predictions don't need it);
-          - skip the split if either is empty;
-          - model = model_factory(); model.fit(X_train, y_train); predict X_test.
-      * Return ONE DataFrame with columns exactly: date, code, pred
-        (out-of-sample rows only; each (date, code) once).
-    Hint: df["date"].isin(train_dates) selects rows.
-    """
-    raise NotImplementedError("Step 4: implement walk_forward_predict")
+    d = df.dropna(subset=features).copy()
+    d["target"] = d.groupby("date")[label].rank(pct=True)          # blank 5: rank returns among stocks on the same ...?
+    preds = []
+    for train_dates, test_dates in splits:
+        tr = d[d["date"].isin(train_dates)].dropna(subset=["target"])
+        te = d[d["date"].isin(test_dates)]                             # blank 6
+        if tr.empty or te.empty:
+            continue
+        model = model_factory()                                # a FRESH model every window
+        model.fit(tr[features], tr["target"])                       # blank 7: what does the model learn to predict?
+        preds.append(pd.DataFrame({"date": te["date"].values,
+                                   "code": te["code"].values,
+                                   "pred": model.predict(te[features])}))   # blank 8: the model's inputs
+    return pd.concat(preds, ignore_index=True)
