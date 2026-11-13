@@ -9,6 +9,8 @@ as a portfolio after trading costs.
 A-share return skew puts volatile "lottery" stocks — which usually lose but occasionally jump —
 in the model's bottom quintile, and weekly rebalancing at 39% turnover costs about **5.8% a year**
 against a gross long-only edge of about **0.5% a year**. Positive IC is necessary, not sufficient.
+A pre-declared follow-up — monthly rebalancing — cut costs about 3x and turned the net result
+slightly positive (+1.6% a year, Sharpe 0.22), but not significantly.
 
 ## Results (out-of-sample 2020-02-05 to 2025-12-31, 24 retrains, same dates for every signal)
 
@@ -41,6 +43,26 @@ Model quintiles on rebalance dates (5-day forward return):
 
 ![Returns by quintile](reports/csi300/quantile_returns.png)
 ![Long-only excess after costs](reports/csi300/equity_curve.png)
+
+## Experiment: monthly rebalancing (declared before running; exploratory)
+
+Hypothesis: costs kill the weekly edge, so trading less often should help. One variant only:
+20-day label and rebalancing every 20 days; everything else unchanged.
+
+| Model | Mean RankIC | ICIR | Long-short Sharpe (gross) | Long-only excess, net | Net Sharpe | Turnover per rebalance |
+|---|---|---|---|---|---|---|
+| Weekly (5-day) | 0.021 | 0.125 | −0.19 | −5.4% / yr | −0.59 | 0.39 |
+| **Monthly (20-day)** | **0.035** | **0.222** | **0.31** | **+1.6% / yr** | **0.22** | 0.54 |
+
+- **Costs fall about 3x:** 2 × 15 bp × 0.54 × 12.5 rebalances ≈ 2.0% a year, versus ≈ 5.8% weekly.
+- **The signal is stronger at 20 days** (RankIC 0.035 vs 0.021): low volatility, low turnover and
+  illiquidity are slow-moving effects, so a monthly horizon suits them better.
+- The momentum baseline gets worse (RankIC −0.022, net −2.2% a year).
+- **Not significant:** about 6 years of monthly periods give a Sharpe standard error of roughly 0.4,
+  so a net Sharpe of 0.22 is indistinguishable from zero, and the period was already seen. The
+  direction supports the hypothesis; it is not evidence of a tradable strategy.
+
+Full tables: [`reports/csi300_h20/results.md`](reports/csi300_h20/results.md).
 
 ## What the factors say about A-shares (full period, exploratory)
 
@@ -85,8 +107,8 @@ learns each feature's direction from past data only, inside each walk-forward wi
 
 ## Next steps
 
-1. **Turnover control** — rebalance less often, or a buffer rule that only sells when a stock leaves
-   the top 40% (exploratory: the test period has now been seen).
+1. **Turnover control** — monthly rebalancing helped (above); next, a buffer rule that only sells
+   when a stock leaves the top 40%, and validation on a period not yet seen.
 2. **LLM sentiment from company announcements (公告)** as an extra feature, with strict
    publication-time alignment.
 3. Point-in-time index membership; industry neutralisation; Newey-West t-stats; skew-robust portfolios.

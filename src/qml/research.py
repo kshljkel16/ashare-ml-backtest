@@ -127,7 +127,7 @@ def main() -> None:
     ap.add_argument("--synthetic", action="store_true", help="use planted-signal data")
     args = ap.parse_args()
     name = "synthetic" if args.synthetic else "csi300"
-    out = Path("reports") / name
+    out = Path("reports") / (name if HORIZON == 5 else f"{name}_h{HORIZON}")
     out.mkdir(parents=True, exist_ok=True)
 
     print("Steps 1-2: clean, label, features ...")
