@@ -24,3 +24,8 @@ Model quintiles (5-day forward return, rebalance dates):
 - RankIC on rebalance dates only: 0.0168 (vs 0.0213 on all dates) — some sampling noise.
 - Conclusion: positive IC is necessary but not sufficient; skew and turnover separate ranking skill
   from net returns.
+  
+## Experiment (declared before running): monthly rebalancing
+Hypothesis: costs (~5.8%/yr at weekly rebalancing) kill the edge. Rebalancing every 20 days with a
+20-day label should cut yearly costs ~3x. One variant only (HORIZON = 20); everything else unchanged.
+Exploratory: the 2020–2025 period has already been seen.
