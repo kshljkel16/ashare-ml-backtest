@@ -64,6 +64,37 @@ Hypothesis: costs kill the weekly edge, so trading less often should help. One v
 
 Full tables: [`reports/csi300_h20/results.md`](reports/csi300_h20/results.md).
 
+## LLM event study: do company announcements predict returns? (2024)
+
+Kimi (thinking off) labelled **39,805 announcements (35,882 unique titles) from 299 CSI 300
+companies** as positive / neutral / negative plus an event type, for **$4.19** in 1,428 calls,
+with no unparsed answers. Each announcement is aligned conservatively: it belongs to the last
+trading day on or before its date and is traded only from the **next open**. Returns are
+abnormal: minus the equal-weight average of all stocks that day.
+
+| Group (stock-days) | 1 day | 5 days | 20 days |
+|---|---|---|---|
+| Positive news | −0.04% (t −1.0) | −0.11% (t −1.3) | **−0.54% (t −2.9)** |
+| Negative news | +0.03% (t 0.4) | +0.02% (t 0.1) | −0.17% (t −0.5) |
+| Neutral (routine) | −0.02% (t −0.7) | +0.01% (t 0.1) | −0.09% (t −0.9) |
+| No announcement | 0.00% | 0.00% | +0.04% |
+
+- **The pre-registered hypothesis is not supported:** there is no positive drift after good news
+  and no negative drift after bad news, measured from the first price one could trade at.
+  For large caps, the information is priced in before the next open.
+- Positive news is followed by **20-day underperformance** (−0.54%), consistent with the
+  overreaction-then-reversal pattern seen in the price factors. This is weak evidence: it is 1 of
+  12 group-horizon tests, announcements cluster in earnings seasons, and 20-day windows overlap,
+  so the t-stat is overstated.
+- The neutral group behaves like no-news days, as a control should.
+- **Label check:** a second LLM (Claude), labelling 50 random titles blind from the title only,
+  agreed with Kimi on 49 of 50 (98%), and on 6 of 7 where either called the news non-neutral.
+  The one disagreement, a hospital acquisition, is genuinely ambiguous. Two LLMs can share blind
+  spots and 7 non-routine titles is a small sample, so this is a sanity check, not a validation
+  (`scripts/claude_check.py`).
+- Full tables, including the breakdown by event type:
+  [`reports/event_study_20240101_20241231/results.md`](reports/event_study_20240101_20241231/results.md).
+
 ## What the factors say about A-shares (full period, exploratory)
 
 | Feature | Mean RankIC | Reading |
@@ -93,7 +124,7 @@ learns each feature's direction from past data only, inside each walk-forward wi
   quintile vs equal-weight universe after costs (tradable — shorting A-shares is restricted),
   turnover, Sharpe, max drawdown. Baseline and model are measured on identical dates.
 - **Verification:** a synthetic dataset with planted momentum and reversal; the full pipeline must
-  find them (model RankIC 0.057 there). 27 unit tests.
+  find them (model RankIC 0.057 there). 34 unit tests.
 
 ## Limitations
 
@@ -109,16 +140,23 @@ learns each feature's direction from past data only, inside each walk-forward wi
 
 1. **Turnover control** — monthly rebalancing helped (above); next, a buffer rule that only sells
    when a stock leaves the top 40%, and validation on a period not yet seen.
-2. **LLM sentiment from company announcements (公告)** as an extra feature, with strict
-   publication-time alignment.
+2. **Announcements:** a larger human-labelled sample focused on non-routine titles (the LLM check
+   above covers only 7); test the immediate reaction with intraday timestamps (the drift after the
+   next open is ~zero); smaller caps (CSI 500).
 3. Point-in-time index membership; industry neutralisation; Newey-West t-stats; skew-robust portfolios.
 
 ## Run it
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                                            # 27 tests, offline
+pytest -q                                            # 34 tests, offline
 python -m qml.research --synthetic                   # pipeline check on planted-signal data
 python -m qml.data --start 20180101 --end 20251231   # download CSI 300 via AkShare
 python -m qml.research                               # real results -> reports/csi300/
+
+# LLM event study (needs MOONSHOT_API_KEY in .env)
+python -m qml.announcements --start 20240101 --end 20241231
+python -m qml.event_study --start 20240101 --end 20241231        # cost estimate only
+python -m qml.event_study --start 20240101 --end 20241231 --yes  # label + run (~$4)
+python scripts/claude_check.py                                   # label agreement check
 ```
